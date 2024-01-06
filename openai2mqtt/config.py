@@ -40,6 +40,11 @@ validators = [
         default="openai2mqtt",
         cast=str,
     ),
+    Validator(
+        "MQTT__KEEPALIVE",
+        default=60,
+        cast=int,
+    ),
 ]
 
 

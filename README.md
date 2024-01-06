@@ -29,7 +29,9 @@ Payload:
         "assistant_id": "string"
     }
 
+### Session
 
+Each `session-id` needs to be persisted (in case of crash) with the OpenAI Assistant Thread ID. This means the Thread can be re-polled on restart. This session should have a similar TTL to OpenAI's API
 
 ## Development
 

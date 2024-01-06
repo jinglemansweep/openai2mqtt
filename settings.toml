@@ -1,2 +1,10 @@
 [general]
-  # mqtt_host = "mqtt"
+  # debug = false
+
+[mqtt]
+  # host = "localhost"
+  # port = 1883
+  # username = "user"
+  # password = "password"
+  # client_id = "openai2mqtt"
+  # topic_prefix = "openai2mqtt"

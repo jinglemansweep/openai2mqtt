@@ -13,6 +13,11 @@ Create a Python 3.x virtual environment, and install project dependencies:
     pip install --upgrade pip poetry
     poetry install
 
+Install `pre-commit` hooks:
+
+    . venv/bin/activate
+    pre-commit install -t commit-msg -t pre-commit
+
 ## Running
 
 To run the project:

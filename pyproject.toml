@@ -18,8 +18,10 @@ types-pyyaml = "^6.0.12.12"
 [tool.poetry.group.dev.dependencies]
 black = "^23.1.0"
 flake8 = "^6.0.0"
+gitlint = "^0.19.1"
 mypy = "^1.0.0"
 pre-commit = "^3.6.0"
+
 
 [build-system]
 requires = ["poetry-core"]

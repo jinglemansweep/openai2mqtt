@@ -20,7 +20,3 @@ repos:
     rev: 6.1.0
     hooks:
       - id: flake8
-  - repo: https://github.com/jorisroovers/gitlint
-    rev:  v0.19.1
-    hooks:
-      - id: gitlint

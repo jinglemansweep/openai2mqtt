@@ -19,3 +19,5 @@ To run the project:
 
     . venv/bin/activate
     python3 -m openai2mqtt
+
+TEST

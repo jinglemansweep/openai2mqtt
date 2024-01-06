@@ -27,4 +27,4 @@ jobs:
       - name: MyPy check
         run: |
           . ./venv/bin/activate
-          mypy openai2mqtt/**/*.py
+          mypy -m openai2mqtt

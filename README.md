@@ -2,8 +2,6 @@
 
 [![mypy](https://github.com/jinglemansweep/openai2mqtt/actions/workflows/mypy.yml/badge.svg)](https://github.com/jinglemansweep/openai2mqtt/actions/workflows/mypy.yml) [![flake8](https://github.com/jinglemansweep/openai2mqtt/actions/workflows/flake8.yml/badge.svg)](https://github.com/jinglemansweep/openai2mqtt/actions/workflows/flake8.yml) [![black](https://github.com/jinglemansweep/openai2mqtt/actions/workflows/black.yml/badge.svg)](https://github.com/jinglemansweep/openai2mqtt/actions/workflows/black.yml) [![codeql](https://github.com/jinglemansweep/openai2mqtt/actions/workflows/codeql.yml/badge.svg)](https://github.com/jinglemansweep/openai2mqtt/actions/workflows/codeql.yml) [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 
-<img src="./docs/images/logo.png" width="50%" height="50%" alt="OpenAI2MQTT Logo">
-
 Provides an MQTT interface for interacting with OpenAI services (including ChatGPT and Assistants).
 
 ## Development

@@ -45,6 +45,8 @@ validators = [
         default=60,
         cast=int,
     ),
+    # API
+    Validator("OPENAI_API_KEY", default=None, cast=str),
 ]
 
 

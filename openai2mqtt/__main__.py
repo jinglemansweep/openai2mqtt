@@ -1,3 +1,6 @@
+import aiomqtt
+import asyncio
+
 import json
 import logging
 import time
@@ -52,6 +55,7 @@ class Assistant(BaseModel):
 class Message(BaseModel):
     assistant_id: str
     thread_id: str
+    role: str = "user"
     content: str
 
 
@@ -63,12 +67,12 @@ store["assistants"] = get_assistants(openai_client)
 # MQTT
 
 
-def ping(mqtt_client):
+async def ping(mqtt_client):
     logger.info("action: type=pong")
     mqtt_client.publish(f"{settings.mqtt.topic_prefix}/pong")
 
 
-def assistant_create(mqtt_client, topic, payload):
+async def assistant_create(mqtt_client, topic, payload):
     try:
         config = Assistant.model_validate_json(payload)
     except Exception as e:
@@ -97,10 +101,10 @@ def assistant_create(mqtt_client, topic, payload):
         logger.info(f"Assistant '{config.name}' created")
 
 
-def thread_create(mqtt_client, topic, payload):
+async def thread_create(mqtt_client, topic, payload):
     logger.debug(f"thread.create")
     thread = openai_client.beta.threads.create()
-    mqtt_client.publish(
+    await mqtt_client.publish(
         f"{settings.mqtt.topic_prefix}/thread/status",
         payload=json.dumps(dict(id=thread.id, metadata=thread.metadata)),
     )
@@ -108,7 +112,7 @@ def thread_create(mqtt_client, topic, payload):
     return thread
 
 
-def thread_message(mqtt_client, topic, payload):
+async def thread_message(mqtt_client, topic, payload):
     try:
         message = Message.model_validate_json(payload)
     except Exception as e:
@@ -120,18 +124,23 @@ def thread_message(mqtt_client, topic, payload):
     assistant = get_assistant(openai_client, message.assistant_id)
     thread = get_thread(openai_client, message.thread_id)
     openai_client.beta.threads.messages.create(
-        thread_id=thread.id, role="user", content=message.content
+        thread_id=thread.id, role=message.role, content=message.content
     )
     run = openai_client.beta.threads.runs.create(
         thread_id=thread.id,
         assistant_id=assistant.id,
     )
     while run.status != "completed":
-        logger.debug(f"thread.run.status: id={run.id} status={run.status}")
         run = openai_client.beta.threads.runs.retrieve(
             thread_id=thread.id, run_id=run.id
         )
-        time.sleep(1)
+        logger.debug(f"thread.run.status: id={run.id} status={run.status}")
+        await mqtt_client.publish(
+            f"{settings.mqtt.topic_prefix}/thread/run/{thread.id}",
+            json.dumps(dict(id=run.id, status=run.status)),
+        )
+        await asyncio.sleep(1)
+
     messages = list(
         openai_client.beta.threads.messages.list(thread_id=thread.id, order="desc")
     )
@@ -139,36 +148,39 @@ def thread_message(mqtt_client, topic, payload):
 
     for m in filtered_messages:
         logger.info(f"thread.message: id={m.id} content={m.content[0].text.value}")
-        mqtt_client.publish(
-            f"{settings.mqtt.topic_prefix}/thread/reply",
-            m.content[0].text.value,
+        await mqtt_client.publish(
+            f"{settings.mqtt.topic_prefix}/thread/message/{thread.id}",
+            json.dumps(dict(id=m.id, content=m.content[0].text.value)),
         )
 
 
-def on_mqtt_message(mqtt_client, userdata, message):
-    topic = message.topic[len(settings.mqtt.topic_prefix) + 1 :]
+async def handle_message(message, mqtt_client):
+    topic = str(message.topic)[len(settings.mqtt.topic_prefix) + 1 :]
     payload = message.payload.decode()
     logger.debug(
         f"mqtt.message: prefix={settings.mqtt.topic_prefix} topic={topic} payload={payload}"
     )
     if topic.startswith("ping"):
-        ping(mqtt_client)
+        await ping(mqtt_client)
     elif topic.startswith("assistant/create"):
-        assistant_create(mqtt_client, topic, payload)
+        await assistant_create(mqtt_client, topic, payload)
     elif topic.startswith("thread/create"):
-        thread_create(mqtt_client, topic, payload)
+        await thread_create(mqtt_client, topic, payload)
     elif topic.startswith("thread/message"):
-        thread_message(mqtt_client, topic, payload)
+        await thread_message(mqtt_client, topic, payload)
 
 
-mqtt_client = Client(client_id=settings.mqtt.client_id)
-mqtt_client.on_message = on_mqtt_message
-if settings.mqtt.username is not None:
-    mqtt_client.username_pw_set(settings.mqtt.username, settings.mqtt.password)
-mqtt_client.connect(settings.mqtt.host, settings.mqtt.port, settings.mqtt.keepalive)
+async def main():
 
-mqtt_client.subscribe(f"{settings.mqtt.topic_prefix}/#")
+    async with aiomqtt.Client(
+        hostname=settings.mqtt.host,
+        port=settings.mqtt.port,
+        username=settings.mqtt.username,
+        password=settings.mqtt.password,
+    ) as mqtt_client:
+        await mqtt_client.subscribe(f"{settings.mqtt.topic_prefix}/#")
+        async for message in mqtt_client.messages:
+            await handle_message(message, mqtt_client)
 
-logger.debug(f"config: {settings.as_dict()}")
 
-mqtt_client.loop_forever()
+asyncio.run(main())

@@ -8,30 +8,71 @@ Provides an MQTT interface for interacting with OpenAI services (including ChatG
 
 ### MQTT
 
-#### Topic: `<prefix>/assistant/message/<session-id>`
+#### Publish
 
-Publishes a message to the provided session. If the session does not exist, one is created and associated with the `session-id` (NOTE: persisted to Redis)
+##### `openai2mqtt/assistant/create`
 
-If session does not exist, an OpenAI Assistant [Thread](https://platform.openai.com/docs/api-reference/threads) is created and maintained.
-
-The posted message is then created as a [Message](https://platform.openai.com/docs/api-reference/messages) and appended to the new or existing thread.
-
-A [Run](https://platform.openai.com/docs/api-reference/runs) is then created and launched to send the thread contents to OpenAI APIs. This Run is associated with the Session and is periodically polled.
-
-If the Run status equals `complete`, retrieve any response Messages and publish them to the MQTT topic: `<prefix>/assistant/response/<session-id>`
-
-TODO: Handle `requires-action`
-
-Payload:
+Create a new assistant.
 
     {
-        "message": "string",
-        "assistant_id": "string"
+        "name": "My Assistant",
+        "instructions": "You are a personal math tutor. Write and run code to answer math questions.",
+        "model": "gpt-4o-mini"
     }
 
-### Session
+##### `openai2mqtt/thread/create`
 
-Each `session-id` needs to be persisted (in case of crash) with the OpenAI Assistant Thread ID. This means the Thread can be re-polled on restart. This session should have a similar TTL to OpenAI's API
+Create a new thread.
+
+##### `openai2mqtt/thread/message`
+
+Post a new message to an assistant thread.
+
+    {
+        "assistant_id": "asst_zDOIzdnXWGXXOo1bOGwRdbRH",
+        "thread_id": "thread_QS1ZI0oSxMxo0npePrtPVpMp",
+        "role": "user",
+        "content": "How big is a box?"
+    }
+
+#### Subscribe
+
+##### `openai2mqtt/assistant/status`
+
+Status of assistant management actions.
+
+    {
+        "id": "asst_zDOIzdnXWGXXOo1bOGwRdbRH",
+        "name": "My Assistant",
+        "model": "gpt-4o-mini"
+    }
+
+##### `openai2mqtt/thread/status`
+
+Status of thread management actions.
+
+    {
+        "id": "thread_QS1ZI0oSxMxo0npePrtPVpMp",
+        "metadata": {}
+    }
+
+##### `openai2mqtt/thread/run/<thread-id>`
+
+Status of thread run for thread `<thread-id>`.
+
+    {
+        "id": "run_1234567890",
+        "status": "completed"
+    }
+
+##### `openai2mqtt/thread/message/<thread-id>`
+
+Message reply from model for `<thread-id>`.
+
+    {
+        "id": "msg_1234567890",
+        "content": "Example response"
+    }
 
 ## Development
 

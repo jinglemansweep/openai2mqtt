@@ -22,7 +22,7 @@ Create a new assistant.
 
 Create a new thread.
 
-#### `openai2mqtt/thread/message`
+#### `openai2mqtt/thread/post`
 
 Post a new message to an assistant thread.
 

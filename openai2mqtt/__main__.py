@@ -107,14 +107,14 @@ async def thread_create(mqtt_client, topic, payload):
     return thread
 
 
-async def thread_message(mqtt_client, topic, payload):
+async def thread_post(mqtt_client, topic, payload):
     try:
         message = Message.model_validate_json(payload)
     except Exception as e:
         logger.error(f"error: type=invalid_message payload={payload}", exc_info=e)
         return
     logger.debug(
-        f"thread.message: assistant_id={message.assistant_id} thread_id={message.thread_id} content={message.content}"
+        f"thread.post: assistant_id={message.assistant_id} thread_id={message.thread_id} content={message.content}"
     )
     assistant = get_assistant(openai_client, message.assistant_id)
     thread = get_thread(openai_client, message.thread_id)
@@ -161,8 +161,8 @@ async def handle_message(message, mqtt_client):
         await assistant_create(mqtt_client, topic, payload)
     elif topic.startswith("thread/create"):
         await thread_create(mqtt_client, topic, payload)
-    elif topic.startswith("thread/message"):
-        await thread_message(mqtt_client, topic, payload)
+    elif topic.startswith("thread/post"):
+        await thread_post(mqtt_client, topic, payload)
 
 
 async def main():

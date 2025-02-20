@@ -1,11 +1,8 @@
 import aiomqtt
 import asyncio
-
 import json
 import logging
-import time
 from openai import OpenAI
-from paho.mqtt.client import Client
 from pydantic import BaseModel
 from typing import Dict
 from .constants import (
@@ -16,9 +13,7 @@ from .utils.logger import setup_logger
 from .utils.openai_api import (
     get_assistants,
     get_assistant,
-    get_threads,
     get_thread,
-    get_assistant_by_name,
 )
 
 # Notes
@@ -102,7 +97,7 @@ async def assistant_create(mqtt_client, topic, payload):
 
 
 async def thread_create(mqtt_client, topic, payload):
-    logger.debug(f"thread.create")
+    logger.debug("thread.create")
     thread = openai_client.beta.threads.create()
     await mqtt_client.publish(
         f"{settings.mqtt.topic_prefix}/thread/status",

@@ -47,9 +47,8 @@ class Assistant(BaseModel):
     model: str = "gpt-4o-mini"
 
 
-class Message(BaseModel):
+class ThreadMessage(BaseModel):
     assistant_id: str
-    thread_id: str
     role: str = "user"
     content: str
 
@@ -62,18 +61,18 @@ store["assistants"] = get_assistants(openai_client)
 # MQTT
 
 
-async def ping(mqtt_client):
-    logger.info("action: type=pong")
+async def api_ping(mqtt_client):
+    logger.info("api.ping: result=pong")
     mqtt_client.publish(f"{settings.mqtt.topic_prefix}/pong")
 
 
-async def assistant_create(mqtt_client, topic, payload):
+async def api_assistant_create(mqtt_client, topic, payload):
     try:
         config = Assistant.model_validate_json(payload)
     except Exception as e:
         logger.error(f"error: type=invalid_message payload={payload}", exc_info=e)
         return
-    logger.debug(f"assistant.create: config={config.model_dump()}")
+    logger.debug(f"api.assistant.create: config={config.model_dump()}")
     name_lower = config.name.lower()
     if len([a for a in store["assistants"] if a.name == name_lower]) > 0:
         logger.info(f"Assistant '{name_lower}' already exists")
@@ -88,7 +87,7 @@ async def assistant_create(mqtt_client, topic, payload):
         )
         store["assistants"] = get_assistants(openai_client)
         mqtt_client.publish(
-            f"{settings.mqtt.topic_prefix}/assistant/status",
+            f"{settings.mqtt.topic_prefix}/api/assistant/status",
             payload=json.dumps(
                 dict(id=assistant.id, name=assistant.name, model=assistant.model)
             ),
@@ -96,28 +95,37 @@ async def assistant_create(mqtt_client, topic, payload):
         logger.info(f"Assistant '{config.name}' created")
 
 
-async def thread_create(mqtt_client, topic, payload):
-    logger.debug("thread.create")
+async def api_thread_create(mqtt_client, topic, payload):
+    logger.debug("api.thread.create")
     thread = openai_client.beta.threads.create()
     await mqtt_client.publish(
-        f"{settings.mqtt.topic_prefix}/thread/status",
+        f"{settings.mqtt.topic_prefix}/api/thread/status",
         payload=json.dumps(dict(id=thread.id, metadata=thread.metadata)),
     )
     logger.info(f"Thread '{thread.id}' created")
     return thread
 
 
-async def thread_post(mqtt_client, topic, payload):
-    try:
-        message = Message.model_validate_json(payload)
-    except Exception as e:
-        logger.error(f"error: type=invalid_message payload={payload}", exc_info=e)
-        return
-    logger.debug(
-        f"thread.post: assistant_id={message.assistant_id} thread_id={message.thread_id} content={message.content}"
-    )
-    assistant = get_assistant(openai_client, message.assistant_id)
-    thread = get_thread(openai_client, message.thread_id)
+async def thread_handler(mqtt_client, topic, payload):
+    _, thread_id, action = topic.split("/")
+
+    if action == "post":
+        try:
+            message = ThreadMessage.model_validate_json(payload)
+        except Exception as e:
+            logger.error(
+                f"error: type=invalid_thread_action payload={payload}", exc_info=e
+            )
+            return
+        logger.debug(
+            f"thread.handler: assistant_id={message.assistant_id} thread_id={thread_id} action={action}"
+        )
+        assistant = get_assistant(openai_client, message.assistant_id)
+        thread = get_thread(openai_client, thread_id)
+        await thread_post(mqtt_client, assistant, thread, message)
+
+
+async def thread_post(mqtt_client, assistant, thread, message):
     openai_client.beta.threads.messages.create(
         thread_id=thread.id, role=message.role, content=message.content
     )
@@ -131,20 +139,22 @@ async def thread_post(mqtt_client, topic, payload):
         )
         logger.debug(f"thread.run.status: id={run.id} status={run.status}")
         await mqtt_client.publish(
-            f"{settings.mqtt.topic_prefix}/thread/run/{thread.id}",
+            f"{settings.mqtt.topic_prefix}/thread/{thread.id}/run",
             json.dumps(dict(id=run.id, status=run.status)),
         )
         await asyncio.sleep(1)
 
     messages = list(
-        openai_client.beta.threads.messages.list(thread_id=thread.id, order="desc")
+        openai_client.beta.threads.messages.list(
+            thread_id=thread.id, order="desc", limit=5
+        )
     )
     filtered_messages = messages[:1]
 
     for m in filtered_messages:
         logger.info(f"thread.message: id={m.id} content={m.content[0].text.value}")
         await mqtt_client.publish(
-            f"{settings.mqtt.topic_prefix}/thread/message/{thread.id}",
+            f"{settings.mqtt.topic_prefix}/thread/{thread.id}/message",
             json.dumps(dict(id=m.id, content=m.content[0].text.value)),
         )
 
@@ -156,13 +166,13 @@ async def handle_message(message, mqtt_client):
         f"mqtt.message: prefix={settings.mqtt.topic_prefix} topic={topic} payload={payload}"
     )
     if topic.startswith("ping"):
-        await ping(mqtt_client)
-    elif topic.startswith("assistant/create"):
-        await assistant_create(mqtt_client, topic, payload)
-    elif topic.startswith("thread/create"):
-        await thread_create(mqtt_client, topic, payload)
-    elif topic.startswith("thread/post"):
-        await thread_post(mqtt_client, topic, payload)
+        await api_ping(mqtt_client)
+    elif topic.startswith("api/assistant/create"):
+        await api_assistant_create(mqtt_client, topic, payload)
+    elif topic.startswith("api/thread/create"):
+        await api_thread_create(mqtt_client, topic, payload)
+    elif topic.startswith("thread"):
+        await thread_handler(mqtt_client, topic, payload)
 
 
 async def main():

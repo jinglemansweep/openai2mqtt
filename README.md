@@ -8,7 +8,7 @@ Provides an MQTT interface for interacting with OpenAI services (including ChatG
 
 ### MQTT Publish
 
-#### `openai2mqtt/assistant/create`
+#### `openai2mqtt/api/assistant/create`
 
 Create a new assistant.
 
@@ -18,24 +18,23 @@ Create a new assistant.
         "model": "gpt-4o-mini"
     }
 
-#### `openai2mqtt/thread/create`
+#### `openai2mqtt/api/thread/create`
 
 Create a new thread.
 
-#### `openai2mqtt/thread/post`
+#### `openai2mqtt/thread/<thread-id>/post`
 
 Post a new message to an assistant thread.
 
     {
         "assistant_id": "asst_zDOIzdnXWGXXOo1bOGwRdbRH",
-        "thread_id": "thread_QS1ZI0oSxMxo0npePrtPVpMp",
         "role": "user",
         "content": "How big is a box?"
     }
 
 ### MQTT Subscribe
 
-#### `openai2mqtt/assistant/status`
+#### `openai2mqtt/api/assistant/status`
 
 Status of assistant management actions.
 
@@ -45,7 +44,7 @@ Status of assistant management actions.
         "model": "gpt-4o-mini"
     }
 
-#### `openai2mqtt/thread/status`
+#### `openai2mqtt/api/thread/status`
 
 Status of thread management actions.
 
@@ -54,7 +53,7 @@ Status of thread management actions.
         "metadata": {}
     }
 
-#### `openai2mqtt/thread/run/<thread-id>`
+#### `openai2mqtt/thread/<thread-id>/run`
 
 Status of thread run for thread `<thread-id>`.
 
@@ -63,7 +62,7 @@ Status of thread run for thread `<thread-id>`.
         "status": "completed"
     }
 
-#### `openai2mqtt/thread/message/<thread-id>`
+#### `openai2mqtt/thread/<thread-id>/message`
 
 Message reply from model for `<thread-id>`.
 
